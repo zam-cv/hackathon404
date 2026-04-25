@@ -1,8 +1,4 @@
-mod browser_client;
-
-use browser_client::BrowserClient;
-use common::{EventKind, PageState};
-use tauri::{AppHandle, Manager, State};
+use tauri::{AppHandle, Manager};
 
 #[cfg(desktop)]
 use tauri::{Emitter, LogicalPosition, LogicalSize, WebviewUrl, WebviewWindowBuilder};
@@ -19,18 +15,21 @@ const BROWSER_PANE_UA: &str =
 fn navigation_allowed(url: &url::Url) -> bool {
     let s = url.as_str().to_ascii_lowercase();
     const BAD: &[&str] = &[
-        "porn", "xxx", "xvideos", "pornhub", "redtube", "youporn", "xnxx",
-        "onlyfans", "chaturbate",
+        "porn",
+        "xxx",
+        "xvideos",
+        "pornhub",
+        "redtube",
+        "youporn",
+        "xnxx",
+        "onlyfans",
+        "chaturbate",
     ];
     !BAD.iter().any(|p| s.contains(p))
 }
 
 #[cfg(desktop)]
-fn screen_position(
-    app: &AppHandle,
-    rel_x: f64,
-    rel_y: f64,
-) -> Result<(f64, f64), String> {
+fn screen_position(app: &AppHandle, rel_x: f64, rel_y: f64) -> Result<(f64, f64), String> {
     let main = app.get_webview_window("main").ok_or("no main window")?;
     let scale = main.scale_factor().map_err(|e| e.to_string())?;
     let inner = main.inner_position().map_err(|e| e.to_string())?;
@@ -116,11 +115,7 @@ async fn navigate_browser_view(app: AppHandle, url: String) -> Result<(), String
 
     #[cfg(mobile)]
     {
-        tauri_plugin_native_browser_pane::run(
-            &app,
-            "navigate",
-            serde_json::json!({ "url": url }),
-        )?;
+        tauri_plugin_native_browser_pane::run(&app, "navigate", serde_json::json!({ "url": url }))?;
     }
 
     Ok(())
@@ -180,43 +175,6 @@ async fn close_browser_view(app: AppHandle) -> Result<(), String> {
     Ok(())
 }
 
-// --- Comandos legacy del proxy/iframe (se mantienen por compatibilidad). ---
-
-#[tauri::command]
-async fn browser_navigate(
-    state: State<'_, BrowserClient>,
-    url: String,
-) -> Result<PageState, String> {
-    state.navigate(url).await
-}
-
-#[tauri::command]
-async fn browser_event(
-    state: State<'_, BrowserClient>,
-    kind: String,
-    selector: String,
-    value: Option<String>,
-) -> Result<PageState, String> {
-    let kind = parse_kind(&kind)?;
-    state.event(kind, selector, value).await
-}
-
-#[tauri::command]
-async fn browser_get_content(state: State<'_, BrowserClient>) -> Result<PageState, String> {
-    state.content().await
-}
-
-fn parse_kind(s: &str) -> Result<EventKind, String> {
-    match s {
-        "click" => Ok(EventKind::Click),
-        "input" => Ok(EventKind::Input),
-        "change" => Ok(EventKind::Change),
-        "submit" => Ok(EventKind::Submit),
-        "key" => Ok(EventKind::Key),
-        other => Err(format!("unknown event kind: {other}")),
-    }
-}
-
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     #[allow(unused_mut)]
@@ -228,18 +186,11 @@ pub fn run() {
     }
 
     builder
-        .setup(|app| {
-            app.manage(BrowserClient::new());
-            Ok(())
-        })
         .invoke_handler(tauri::generate_handler![
             open_browser_view,
             navigate_browser_view,
             set_browser_view_bounds,
-            close_browser_view,
-            browser_navigate,
-            browser_event,
-            browser_get_content
+            close_browser_view
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

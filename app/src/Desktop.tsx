@@ -5,7 +5,15 @@ import App from "./components/App";
 
 export default function Desktop() {
   return (
-    <main className="px-4 py-6">
+    <main
+      className="px-4 py-6"
+      style={{
+        paddingTop: "max(1.5rem, env(safe-area-inset-top))",
+        paddingBottom: "max(1.5rem, env(safe-area-inset-bottom))",
+        paddingLeft: "max(1rem, env(safe-area-inset-left))",
+        paddingRight: "max(1rem, env(safe-area-inset-right))",
+      }}
+    >
       <div className="flex flex-wrap items-center justify-center gap-4">
         <App name="Navegador" nav="/navegador">
           <Compass className="w-8 h-8" strokeWidth={1.5} />

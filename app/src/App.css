@@ -2,15 +2,31 @@
 
 html {
   font-family: "Inter", sans-serif;
-  min-height: 100%;
+  height: 100vh;
+  height: 100lvh;
   color: #ffffff;
-  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
-  background-attachment: fixed;
+  background: linear-gradient(135deg, #2563eb 0%, #a855f7 100%);
   overflow: hidden;
 }
 
 body {
-  min-height: 100vh;
+  height: 100vh;
+  height: 100lvh;
+  background: transparent;
+  isolation: isolate;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  height: 100lvh;
+  background: linear-gradient(135deg, #2563eb 0%, #a855f7 100%);
+  z-index: -1;
+  pointer-events: none;
 }
 
 * {
