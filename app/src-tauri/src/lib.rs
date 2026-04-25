@@ -2,16 +2,20 @@ mod browser_client;
 
 use browser_client::BrowserClient;
 use common::{EventKind, PageState};
-use tauri::{
-    AppHandle, Emitter, LogicalPosition, LogicalSize, Manager, State, WebviewUrl,
-    WebviewWindowBuilder,
-};
+use tauri::{AppHandle, Manager, State};
 
+#[cfg(desktop)]
+use tauri::{Emitter, LogicalPosition, LogicalSize, WebviewUrl, WebviewWindowBuilder};
+
+#[cfg(desktop)]
 const FILTER_SCRIPT: &str = include_str!("filter.js");
+#[cfg(desktop)]
 const BROWSER_PANE_LABEL: &str = "browser_pane";
+#[cfg(desktop)]
 const BROWSER_PANE_UA: &str =
     "Mozilla/5.0 (Android 13; Mobile; rv:128.0) Gecko/128.0 Firefox/128.0";
 
+#[cfg(desktop)]
 fn navigation_allowed(url: &url::Url) -> bool {
     let s = url.as_str().to_ascii_lowercase();
     const BAD: &[&str] = &[
@@ -38,77 +42,97 @@ fn screen_position(
 async fn open_browser_view(
     app: AppHandle,
     url: String,
-    #[allow(unused_variables)] x: f64,
-    #[allow(unused_variables)] y: f64,
-    #[allow(unused_variables)] width: f64,
-    #[allow(unused_variables)] height: f64,
+    x: f64,
+    y: f64,
+    width: f64,
+    height: f64,
 ) -> Result<(), String> {
-    let parsed = url::Url::parse(&url).map_err(|e| format!("invalid URL: {e}"))?;
-
-    // Si ya existe, simplemente navegamos. Esto es importante en iOS donde no
-    // hay API pública para cerrar/destruir un WebviewWindow.
-    if let Some(existing) = app.get_webview_window(BROWSER_PANE_LABEL) {
-        existing.navigate(parsed).map_err(|e| e.to_string())?;
-        return Ok(());
-    }
-    let app_handle = app.clone();
-
-    let mut builder = WebviewWindowBuilder::new(&app, BROWSER_PANE_LABEL, WebviewUrl::External(parsed))
-        .initialization_script(FILTER_SCRIPT)
-        .user_agent(BROWSER_PANE_UA)
-        .on_navigation(move |u| {
-            let allowed = navigation_allowed(u);
-            if allowed {
-                let _ = app_handle.emit("browser-navigated", u.to_string());
-            } else {
-                let _ = app_handle.emit("browser-blocked", u.to_string());
-            }
-            allowed
-        });
-
     #[cfg(desktop)]
     {
-        let main = app
-            .get_webview_window("main")
-            .ok_or("no main window")?;
+        let _ = url::Url::parse(&url).map_err(|e| format!("invalid URL: {e}"))?;
+
+        if let Some(existing) = app.get_webview_window(BROWSER_PANE_LABEL) {
+            let parsed = url::Url::parse(&url).map_err(|e| e.to_string())?;
+            existing.navigate(parsed).map_err(|e| e.to_string())?;
+            return Ok(());
+        }
+
+        let main = app.get_webview_window("main").ok_or("no main window")?;
+        let parsed = url::Url::parse(&url).map_err(|e| format!("invalid URL: {e}"))?;
         let (screen_x, screen_y) = screen_position(&app, x, y)?;
         eprintln!(
             "[browser_pane] open(desktop): rel=({x:.1},{y:.1}) screen=({screen_x:.1},{screen_y:.1}) size=({width:.1}x{height:.1})"
         );
-        builder = builder
-            .decorations(false)
-            .resizable(false)
-            .position(screen_x, screen_y)
-            .inner_size(width, height)
-            .parent(&main)
-            .map_err(|e| e.to_string())?;
+        let app_handle = app.clone();
+        let mut builder =
+            WebviewWindowBuilder::new(&app, BROWSER_PANE_LABEL, WebviewUrl::External(parsed))
+                .initialization_script(FILTER_SCRIPT)
+                .user_agent(BROWSER_PANE_UA)
+                .decorations(false)
+                .resizable(false)
+                .position(screen_x, screen_y)
+                .inner_size(width, height)
+                .on_navigation(move |u| {
+                    let allowed = navigation_allowed(u);
+                    if allowed {
+                        let _ = app_handle.emit("browser-navigated", u.to_string());
+                    } else {
+                        let _ = app_handle.emit("browser-blocked", u.to_string());
+                    }
+                    allowed
+                });
+        builder = builder.parent(&main).map_err(|e| e.to_string())?;
+        builder.build().map_err(|e| e.to_string())?;
     }
 
-    builder.build().map_err(|e| {
-        eprintln!("[browser_pane] BUILD FAILED: {e}");
-        e.to_string()
-    })?;
+    #[cfg(mobile)]
+    {
+        tauri_plugin_native_browser_pane::run(
+            &app,
+            "open",
+            serde_json::json!({
+                "url": url,
+                "x": x,
+                "y": y,
+                "width": width,
+                "height": height,
+            }),
+        )?;
+    }
 
     Ok(())
 }
 
 #[tauri::command]
 async fn navigate_browser_view(app: AppHandle, url: String) -> Result<(), String> {
-    let win = app
-        .get_webview_window(BROWSER_PANE_LABEL)
-        .ok_or("browser pane not open")?;
-    let parsed = url::Url::parse(&url).map_err(|e| e.to_string())?;
-    win.navigate(parsed).map_err(|e| e.to_string())?;
+    #[cfg(desktop)]
+    {
+        let win = app
+            .get_webview_window(BROWSER_PANE_LABEL)
+            .ok_or("browser pane not open")?;
+        let parsed = url::Url::parse(&url).map_err(|e| e.to_string())?;
+        win.navigate(parsed).map_err(|e| e.to_string())?;
+    }
+
+    #[cfg(mobile)]
+    {
+        tauri_plugin_native_browser_pane::run(
+            &app,
+            "navigate",
+            serde_json::json!({ "url": url }),
+        )?;
+    }
+
     Ok(())
 }
 
 #[tauri::command]
 async fn set_browser_view_bounds(
-    #[allow(unused_variables)] app: AppHandle,
-    #[allow(unused_variables)] x: f64,
-    #[allow(unused_variables)] y: f64,
-    #[allow(unused_variables)] width: f64,
-    #[allow(unused_variables)] height: f64,
+    app: AppHandle,
+    x: f64,
+    y: f64,
+    width: f64,
+    height: f64,
 ) -> Result<(), String> {
     #[cfg(desktop)]
     {
@@ -121,17 +145,38 @@ async fn set_browser_view_bounds(
         win.set_size(LogicalSize::new(width, height))
             .map_err(|e| e.to_string())?;
     }
+
+    #[cfg(mobile)]
+    {
+        tauri_plugin_native_browser_pane::run(
+            &app,
+            "setBounds",
+            serde_json::json!({
+                "x": x,
+                "y": y,
+                "width": width,
+                "height": height,
+            }),
+        )?;
+    }
+
     Ok(())
 }
 
 #[tauri::command]
-async fn close_browser_view(#[allow(unused_variables)] app: AppHandle) -> Result<(), String> {
+async fn close_browser_view(app: AppHandle) -> Result<(), String> {
     #[cfg(desktop)]
-    if let Some(win) = app.get_webview_window(BROWSER_PANE_LABEL) {
-        win.close().map_err(|e| e.to_string())?;
+    {
+        if let Some(win) = app.get_webview_window(BROWSER_PANE_LABEL) {
+            win.close().map_err(|e| e.to_string())?;
+        }
     }
-    // En iOS/Android no hay API pública para cerrar; el WebviewWindow se
-    // reutiliza navegándolo a otra URL o queda hasta que la app se cierre.
+
+    #[cfg(mobile)]
+    {
+        tauri_plugin_native_browser_pane::run(&app, "close", serde_json::json!({}))?;
+    }
+
     Ok(())
 }
 
@@ -174,8 +219,15 @@ fn parse_kind(s: &str) -> Result<EventKind, String> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
-        .plugin(tauri_plugin_opener::init())
+    #[allow(unused_mut)]
+    let mut builder = tauri::Builder::default().plugin(tauri_plugin_opener::init());
+
+    #[cfg(mobile)]
+    {
+        builder = builder.plugin(tauri_plugin_native_browser_pane::init());
+    }
+
+    builder
         .setup(|app| {
             app.manage(BrowserClient::new());
             Ok(())

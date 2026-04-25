@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { ArrowLeft, Loader2, Search } from "lucide-react";
@@ -12,6 +12,19 @@ export default function Navegador() {
   const [hasView, setHasView] = useState(false);
   const paneRef = useRef<HTMLDivElement | null>(null);
   const hasViewRef = useRef(false);
+  const routerNavigate = useNavigate();
+
+  const dismissAndGoHome = useCallback(async () => {
+    // Cerrar el WebView nativo ANTES de navegar fuera, para evitar que el
+    // unmount de React lo deje colgando en pantalla.
+    try {
+      await invoke("close_browser_view");
+    } catch (_) {
+      // ignore
+    }
+    hasViewRef.current = false;
+    routerNavigate("/");
+  }, [routerNavigate]);
 
   const updateBounds = useCallback(async () => {
     if (!paneRef.current || !hasViewRef.current) return;
@@ -117,13 +130,14 @@ export default function Navegador() {
   return (
     <AppShell>
       <div className="flex items-center gap-2 mb-3">
-        <Link
-          to="/"
+        <button
+          type="button"
           aria-label="Volver"
+          onClick={() => void dismissAndGoHome()}
           className="px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors flex items-center justify-center"
         >
           <ArrowLeft className="w-4 h-4" strokeWidth={2} />
-        </Link>
+        </button>
         <form
           onSubmit={(e) => {
             e.preventDefault();
