@@ -182,31 +182,79 @@ class NativeBrowserPanePlugin(private val activity: Activity) : Plugin(activity)
             processImg(img);
           }
 
-          var TEXT_SELECTOR = 'p:not(.__sb_done),h1:not(.__sb_done),h2:not(.__sb_done),h3:not(.__sb_done),h4:not(.__sb_done),h5:not(.__sb_done),h6:not(.__sb_done)';
+          // TreeWalker para cobertura ancha de texto (descripciones DDG, etc).
+          var SKIP_TAGS = { SCRIPT:1,STYLE:1,NOSCRIPT:1,TEMPLATE:1,IFRAME:1,SVG:1,CANVAS:1,INPUT:1,TEXTAREA:1,SELECT:1,OPTION:1,BUTTON:1,LABEL:1,NAV:1,CODE:1,PRE:1,KBD:1,SAMP:1 };
+          var SKIP_ROLES = { button:1,tab:1,menuitem:1,menuitemcheckbox:1,menuitemradio:1,switch:1,radio:1,checkbox:1,navigation:1,banner:1,contentinfo:1,search:1 };
+          var processedTextNodes = new WeakSet();
+          function shouldSkipForTextWalk(textNode) {
+            var p = textNode.parentNode;
+            while (p && p.nodeType === 1) {
+              var tag = p.tagName;
+              if (SKIP_TAGS[tag]) return true;
+              if (p.isContentEditable) return true;
+              if (p.hidden) return true;
+              var aHidden = p.getAttribute && p.getAttribute('aria-hidden');
+              if (aHidden === 'true') return true;
+              var role = p.getAttribute && p.getAttribute('role');
+              if (role && SKIP_ROLES[role.toLowerCase()]) return true;
+              if (tag === 'BODY') break;
+              p = p.parentNode;
+            }
+            return false;
+          }
+          var LETTER_SEQ;
+          try { LETTER_SEQ = new RegExp('\\p{L}{4,}', 'u'); } catch (_) { LETTER_SEQ = /[A-Za-zÀ-ɏ]{4,}/; }
+          function isContentText(text) {
+            if (!text) return false;
+            var trimmed = text.replace(/^\s+|\s+$/g, '');
+            if (trimmed.length < 8) return false;
+            if (!LETTER_SEQ.test(trimmed)) return false;
+            return true;
+          }
+          var REVEAL_SELECTOR = 'p:not(.__sb_done),h1:not(.__sb_done),h2:not(.__sb_done),h3:not(.__sb_done),h4:not(.__sb_done),h5:not(.__sb_done),h6:not(.__sb_done)';
+
           function scanRoot(root) {
-            if (!root || !root.querySelectorAll) return;
+            if (!root) return;
             try {
-              var imgs = root.querySelectorAll('img:not(.__sb_done)');
-              for (var j = 0; j < imgs.length; j++) queueImg(imgs[j]);
-            } catch (_) {}
-            var elems = [], texts = [];
-            try {
-              var nodes = root.querySelectorAll(TEXT_SELECTOR);
-              for (var i = 0; i < nodes.length; i++) {
-                var t = nodes[i].textContent || '';
-                if (t.length < 3) { reveal(nodes[i]); continue; }
-                elems.push(nodes[i]); texts.push(t);
+              if (root.querySelectorAll) {
+                var imgs = root.querySelectorAll('img:not(.__sb_done)');
+                for (var j = 0; j < imgs.length; j++) queueImg(imgs[j]);
               }
             } catch (_) {}
-            if (texts.length === 0) return;
+            var candidates = [];
+            try {
+              var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
+              var node;
+              while ((node = walker.nextNode())) {
+                if (processedTextNodes.has(node)) continue;
+                if (!isContentText(node.nodeValue)) { processedTextNodes.add(node); continue; }
+                if (shouldSkipForTextWalk(node)) { processedTextNodes.add(node); continue; }
+                candidates.push(node);
+              }
+            } catch (_) {}
+            var revealEls = [];
+            try {
+              if (root.querySelectorAll) {
+                var rs = root.querySelectorAll(REVEAL_SELECTOR);
+                for (var r = 0; r < rs.length; r++) revealEls.push(rs[r]);
+              }
+            } catch (_) {}
+            if (candidates.length === 0) {
+              for (var i = 0; i < revealEls.length; i++) reveal(revealEls[i]);
+              return;
+            }
+            var texts = [];
+            for (var c = 0; c < candidates.length; c++) texts.push(candidates[c].nodeValue);
             callFilterTexts(texts).then(function (out) {
-              for (var k = 0; k < elems.length; k++) {
+              for (var k = 0; k < candidates.length; k++) {
                 var v = (out && out[k] != null) ? out[k] : texts[k];
-                try { elems[k].textContent = v; } catch (_) {}
-                reveal(elems[k]);
+                try { candidates[k].nodeValue = v; } catch (_) {}
+                processedTextNodes.add(candidates[k]);
               }
+              for (var rv = 0; rv < revealEls.length; rv++) reveal(revealEls[rv]);
             }, function () {
-              for (var k = 0; k < elems.length; k++) reveal(elems[k]);
+              for (var m = 0; m < candidates.length; m++) processedTextNodes.add(candidates[m]);
+              for (var rv2 = 0; rv2 < revealEls.length; rv2++) reveal(revealEls[rv2]);
             });
           }
 
