@@ -5,21 +5,21 @@ import App from "./components/App";
 
 export default function Desktop() {
   return (
-    <main className="px-4 py-8">
+    <main className="px-4 py-6">
       <div className="flex flex-wrap items-center justify-center gap-4">
-        <App name="Navegador">
+        <App name="Navegador" nav="/navegador">
           <Compass className="w-8 h-8" strokeWidth={1.5} />
         </App>
-        <App name="Facebook">
+        <App name="Facebook" nav="/facebook">
           <FaFacebookF className="w-7 h-7" />
         </App>
-        <App name="Instagram">
+        <App name="Instagram" nav="/instagram">
           <FaInstagram className="w-8 h-8" />
         </App>
-        <App name="Calculadora">
+        <App name="Calculadora" nav="/calculadora">
           <Calculator className="w-8 h-8" strokeWidth={1.5} />
         </App>
-        <App name="Notas">
+        <App name="Notas" nav="/notas">
           <StickyNote className="w-8 h-8" strokeWidth={1.5} />
         </App>
       </div>
