@@ -9,7 +9,7 @@ type Padding = {
 };
 
 const IOS_OR_DEFAULT: Padding = {
-  top: "max(0.75rem, env(safe-area-inset-top), 40px)",
+  top: "calc(env(safe-area-inset-top, 40px) + 1.5rem)",
   bottom: "max(0.75rem, env(safe-area-inset-bottom), 16px)",
   left: "max(0.75rem, env(safe-area-inset-left), 16px)",
   right: "max(0.75rem, env(safe-area-inset-right), 16px)",
@@ -39,17 +39,17 @@ export default function AppShell({
   children: React.ReactNode;
   className?: string;
 }) {
-  const [padding, setPadding] = useState<Padding>(() =>
-    detectIsAndroid() ? ANDROID : IOS_OR_DEFAULT,
-  );
+  const [isAndroid, setIsAndroid] = useState<boolean>(detectIsAndroid);
 
   useEffect(() => {
-    setPadding(detectIsAndroid() ? ANDROID : IOS_OR_DEFAULT);
+    setIsAndroid(detectIsAndroid());
   }, []);
+
+  const padding = isAndroid ? ANDROID : IOS_OR_DEFAULT;
 
   return (
     <main
-      className={`h-dvh flex flex-col gap-2 text-white ${className}`}
+      className={`h-dvh flex flex-col gap-8 text-white ${className}`}
       style={{
         paddingTop: padding.top,
         paddingBottom: padding.bottom,

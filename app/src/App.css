@@ -33,3 +33,31 @@ body::before {
   box-sizing: border-box;
   margin: 0;
 }
+
+@keyframes float-face {
+  0%,
+  100% {
+    transform: translateY(0px) rotate(-1.5deg);
+  }
+  50% {
+    transform: translateY(-4px) rotate(1.5deg);
+  }
+}
+
+@keyframes spin-slow {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-float-face {
+  animation: float-face 4.5s ease-in-out infinite;
+  transform-origin: 50% 50%;
+}
+
+.animate-spin-slow {
+  animation: spin-slow 18s linear infinite;
+}
