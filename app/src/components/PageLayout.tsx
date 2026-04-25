@@ -10,8 +10,8 @@ export default function PageLayout({
   children: React.ReactNode;
 }) {
   return (
-    <AppShell>
-      <header className="flex items-center gap-3 mb-4">
+    <AppShell className="gap-4" iosTopExtra="0px">
+      <header className="flex items-center gap-3 mt-4">
         <Link
           to="/"
           aria-label="Volver"

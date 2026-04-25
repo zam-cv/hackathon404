@@ -128,8 +128,8 @@ export default function Navegador() {
   );
 
   return (
-    <AppShell>
-      <div className="flex items-center gap-2 mb-3">
+    <AppShell className="gap-3" iosTopExtra="0px">
+      <div className="flex items-center gap-2 mt-4">
         <button
           type="button"
           aria-label="Volver"

@@ -70,13 +70,10 @@ function FaceWidget() {
   return (
     <div className="flex flex-col items-center gap-3 mb-3">
       <div className="relative">
-        {/* Outer iridescent halo */}
-        <div className="absolute -inset-6 rounded-[2.75rem] bg-[conic-gradient(from_0deg,rgba(255,180,220,0.35),rgba(180,200,255,0.35),rgba(220,180,255,0.4),rgba(180,230,255,0.3),rgba(255,180,220,0.35))] blur-2xl opacity-70 animate-spin-slow" />
-
         {/* Glass card */}
         <div className="relative w-44 h-44 rounded-[2rem] overflow-hidden border border-white/40 shadow-[0_8px_32px_rgba(31,38,135,0.25),inset_0_1px_0_rgba(255,255,255,0.5)]">
           {/* Frosted backdrop */}
-          <div className="absolute inset-0 backdrop-blur-2xl from-white/25 via-white/10 to-white/5" />
+          <div className="absolute inset-0 backdrop-blur-2xl bg-white/20" />
 
           {/* Top sheen — single soft highlight, the only "wet" cue */}
           <div className="absolute inset-x-0 top-0 h-1/2 from-white/30 via-white/5 to-transparent" />
@@ -136,7 +133,7 @@ function FaceWidget() {
 
 export default function Desktop() {
   return (
-    <AppShell>
+    <AppShell className="gap-8">
       <FaceWidget />
       <div className="flex flex-wrap items-center justify-center gap-4">
         <App name="Navegador" nav="/navegador">

@@ -8,8 +8,7 @@ type Padding = {
   right: string;
 };
 
-const IOS_OR_DEFAULT: Padding = {
-  top: "calc(env(safe-area-inset-top, 40px) + 1.5rem)",
+const IOS_SIDES = {
   bottom: "max(0.75rem, env(safe-area-inset-bottom), 16px)",
   left: "max(0.75rem, env(safe-area-inset-left), 16px)",
   right: "max(0.75rem, env(safe-area-inset-right), 16px)",
@@ -35,9 +34,11 @@ function detectIsAndroid(): boolean {
 export default function AppShell({
   children,
   className = "",
+  iosTopExtra = "1.5rem",
 }: {
   children: React.ReactNode;
   className?: string;
+  iosTopExtra?: string;
 }) {
   const [isAndroid, setIsAndroid] = useState<boolean>(detectIsAndroid);
 
@@ -45,11 +46,16 @@ export default function AppShell({
     setIsAndroid(detectIsAndroid());
   }, []);
 
-  const padding = isAndroid ? ANDROID : IOS_OR_DEFAULT;
+  const padding: Padding = isAndroid
+    ? ANDROID
+    : {
+        ...IOS_SIDES,
+        top: `calc(env(safe-area-inset-top, 40px) + ${iosTopExtra})`,
+      };
 
   return (
     <main
-      className={`h-dvh flex flex-col gap-8 text-white ${className}`}
+      className={`h-dvh flex flex-col text-white ${className}`}
       style={{
         paddingTop: padding.top,
         paddingBottom: padding.bottom,
