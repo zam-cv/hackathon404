@@ -1,0 +1,11 @@
+{
+  "rust-analyzer.linkedProjects": [
+    "./browser/Cargo.toml"
+  ],
+  "rust-analyzer.showUnlinkedFileNotification": false,
+  "git.openRepositoryInParentFolders": "always",
+  "cmake.ignoreCMakeListsMissing": true,
+  "files.associations": {
+    "atomic": "c"
+  }
+}
