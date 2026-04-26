@@ -51,20 +51,20 @@ export function StatesRawTable({ rows }: Props) {
             RAW DATA ·
           </span>
           <span style={{ fontSize: "13px", fontWeight: 600, color: T.text0, fontFamily: "Space Grotesk" }}>
-            regiones_eventos.csv
+            estados_eventos.csv
           </span>
           <span style={{ fontSize: "10px", color: T.text2, fontFamily: "Space Grotesk" }}>
-            {rows.length} rows · 4 cols
+            {rows.length} rows · 3 cols
           </span>
         </div>
         <ExcelExportButton
-          filenamePrefix="sentinel_regiones"
+          filenamePrefix="sentinel_estados"
           label="DESCARGAR EXCEL"
           buildXml={() =>
             buildExcelXml(
-              "Regiones",
-              ["region", "altitud", "latitud", "tipo_de_evento"],
-              rows.map((r) => [r.estado, r.altitud, r.lat, r.ofensa])
+              "Estados",
+              ["estado", "tipo_de_evento", "eventos"],
+              rows.map((r) => [r.estado, r.ofensa, r.incidentes])
             )
           }
         />
@@ -74,10 +74,9 @@ export function StatesRawTable({ rows }: Props) {
           <thead>
             <tr>
               <th style={{ ...head, width: "40px" }}>#</th>
-              <th style={head}>region</th>
-              <th style={head}>altitud</th>
-              <th style={head}>latitud</th>
+              <th style={head}>estado</th>
               <th style={head}>tipo_de_evento</th>
+              <th style={head}>eventos</th>
             </tr>
           </thead>
           <tbody>
@@ -99,9 +98,8 @@ export function StatesRawTable({ rows }: Props) {
                   <td style={{ ...cell, color: T.text0, fontFamily: "Inter", fontWeight: 500 }}>
                     {r.estado}
                   </td>
-                  <td style={{ ...cell, color: T.text1 }}>{r.altitud}</td>
-                  <td style={{ ...cell, color: T.text1 }}>{r.lat}</td>
                   <td style={{ ...cell, color: rc.color }}>{r.ofensa}</td>
+                  <td style={{ ...cell, color: T.text1 }}>{r.incidentes}</td>
                 </tr>
               );
             })}

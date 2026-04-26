@@ -5,7 +5,7 @@ import { RiskBadge } from "./RiskBadge";
 import { RiskFilterButtons } from "./RiskFilter";
 import { ExcelExportButton, buildExcelXml } from "./ExcelExportButton";
 
-const HEADERS = ["ID", "Región", "Servicio", "Tipo", "Severidad", "Latitud", "Longitud", "Tiempo"];
+const HEADERS = ["ID", "Servicio", "Tipo", "Severidad", "Estado", "Municipio", "Tiempo"];
 
 interface Props {
   incidents: Incident[];
@@ -63,22 +63,20 @@ export function IncidentsTable({ incidents }: Props) {
                 "Eventos",
                 [
                   "ID",
-                  "Región",
                   "Servicio",
                   "Tipo de Evento",
                   "Severidad",
-                  "Latitud",
-                  "Longitud",
+                  "Estado",
+                  "Municipio",
                   "Tiempo",
                 ],
                 filtered.map((i) => [
                   i.id,
-                  i.region,
                   i.platform,
                   i.type,
                   i.risk,
-                  i.lat,
-                  i.lon,
+                  i.estado,
+                  i.municipio,
                   i.time,
                 ])
               )
@@ -155,17 +153,16 @@ function IncidentRow({ inc, selected, onClick }: RowProps) {
       <td style={{ padding: "10px 12px", fontSize: "12px", fontFamily: "Space Grotesk", color: T.text1, whiteSpace: "nowrap" }}>
         {inc.id}
       </td>
-      <td style={{ padding: "10px 12px", fontSize: "12px", color: T.text0 }}>{inc.region}</td>
       <td style={{ padding: "10px 12px", fontSize: "12px", color: T.text1 }}>{inc.platform}</td>
       <td style={{ padding: "10px 12px", fontSize: "12px", color: T.text0 }}>{inc.type}</td>
       <td style={{ padding: "10px 12px" }}>
         <RiskBadge risk={inc.risk} />
       </td>
-      <td style={{ padding: "10px 12px", fontSize: "11px", color: T.text2, fontFamily: "Space Grotesk", whiteSpace: "nowrap" }}>
-        {inc.lat}
+      <td style={{ padding: "10px 12px", fontSize: "12px", color: T.text0, whiteSpace: "nowrap" }}>
+        {inc.estado}
       </td>
-      <td style={{ padding: "10px 12px", fontSize: "11px", color: T.text2, fontFamily: "Space Grotesk", whiteSpace: "nowrap" }}>
-        {inc.lon}
+      <td style={{ padding: "10px 12px", fontSize: "12px", color: T.text1, whiteSpace: "nowrap" }}>
+        {inc.municipio}
       </td>
       <td style={{ padding: "10px 12px", fontSize: "11px", color: T.text2, whiteSpace: "nowrap" }}>
         {inc.time}

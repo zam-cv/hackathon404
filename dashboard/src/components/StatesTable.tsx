@@ -7,9 +7,7 @@ import { RiskFilterButtons } from "./RiskFilter";
 type SortCol = keyof StateRow;
 
 const COLUMNS: { key: SortCol; label: string }[] = [
-  { key: "estado", label: "Región" },
-  { key: "altitud", label: "Altitud (msnm)" },
-  { key: "lat", label: "Latitud" },
+  { key: "estado", label: "Estado" },
   { key: "incidentes", label: "Eventos" },
   { key: "riesgo", label: "Severidad" },
 ];
@@ -115,12 +113,6 @@ export function StatesTable({ rows }: Props) {
                 >
                   <td style={{ padding: "10px 14px", fontSize: "13px", color: T.text0, fontWeight: 500 }}>
                     {row.estado}
-                  </td>
-                  <td style={{ padding: "10px 14px", fontSize: "12px", color: T.text1, fontFamily: "Space Grotesk" }}>
-                    {row.altitud.toLocaleString("es-MX")} m
-                  </td>
-                  <td style={{ padding: "10px 14px", fontSize: "12px", color: T.text2, fontFamily: "Space Grotesk" }}>
-                    {row.lat}
                   </td>
                   <td style={{ padding: "10px 14px" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
