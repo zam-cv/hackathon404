@@ -162,6 +162,11 @@ raw/
 processed/
 interim/
 external/
+
+# Excepción: la carpeta data/ del dashboard es código fuente (mocks, hooks,
+# adapters), no un dataset — sí debe commitearse.
+!dashboard/src/data/
+!dashboard/src/data/**
 *.csv
 *.tsv
 *.parquet

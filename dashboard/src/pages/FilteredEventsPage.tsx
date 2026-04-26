@@ -1,20 +1,15 @@
 // Página de eventos filtrados — muestra todo lo que la app filtró:
 // texto/imagen, acción (block/warn), texto original, categorías, URL,
-// timestamp y coordenadas (x,y,w,h) del elemento dentro de la WebView.
+// timestamp.
 //
 // "Acomodar" = ordenar por columna; "editar" = limpiar el buffer del
-// server. El visor en lápiz pinta las coordenadas de cada evento
-// como punto coloreado en un viewport de referencia (1280×800), lo cual
-// da una vista espacial de dónde caen los filtrados en la página.
+// server.
 
 import { useMemo, useState } from "react";
 import { useFilterEvents, type FilterEvent } from "../events";
 import { T } from "../theme";
 
-type SortKey = "time" | "y" | "kind" | "action";
-
-const REF_VW = 1280;
-const REF_VH = 800;
+type SortKey = "time" | "kind" | "action";
 
 const ACTION_COLOR: Record<FilterEvent["action"], string> = {
   block: T.secondary,
@@ -34,9 +29,6 @@ export function FilteredEventsPage() {
     switch (sort) {
       case "time":
         arr.sort((a, b) => b.timestamp_ms - a.timestamp_ms);
-        break;
-      case "y":
-        arr.sort((a, b) => a.coords.y - b.coords.y);
         break;
       case "kind":
         arr.sort((a, b) => a.kind.localeCompare(b.kind));
@@ -59,10 +51,6 @@ export function FilteredEventsPage() {
         onClear={clear}
         error={error}
       />
-
-      <Card title="Mapa de coordenadas" sub={`Viewport de referencia ${REF_VW}×${REF_VH}`}>
-        <CoordsCanvas events={filtered} />
-      </Card>
 
       <Card title="Tabla de eventos" sub={`${filtered.length} de ${events.length}`}>
         <EventsTable events={filtered} />
@@ -125,7 +113,6 @@ function Header({
         onChange={(v) => setSort(v as SortKey)}
         options={[
           { v: "time", label: "Tiempo ↓" },
-          { v: "y", label: "Coord Y ↑" },
           { v: "kind", label: "Tipo" },
           { v: "action", label: "Acción" },
         ]}
@@ -235,49 +222,6 @@ function Card({
   );
 }
 
-function CoordsCanvas({ events }: { events: FilterEvent[] }) {
-  // Render a scaled-down "viewport" with one rect per event positioned at its
-  // (x,y,w,h). Since events come from many pages with different viewport sizes,
-  // we just use the reference viewport — anything off-screen gets clipped.
-  return (
-    <div
-      style={{
-        position: "relative",
-        width: "100%",
-        aspectRatio: `${REF_VW} / ${REF_VH}`,
-        background: T.bg1,
-        border: `1px dashed ${T.border}`,
-        borderRadius: 8,
-        overflow: "hidden",
-      }}
-    >
-      {events.map((e) => {
-        const left = (e.coords.x / REF_VW) * 100;
-        const top = (e.coords.y / REF_VH) * 100;
-        const w = (Math.max(e.coords.width, 4) / REF_VW) * 100;
-        const h = (Math.max(e.coords.height, 4) / REF_VH) * 100;
-        const color = ACTION_COLOR[e.action];
-        return (
-          <div
-            key={e.id}
-            title={`${e.kind} · ${e.action} · (${e.coords.x},${e.coords.y})`}
-            style={{
-              position: "absolute",
-              left: `${left}%`,
-              top: `${top}%`,
-              width: `${w}%`,
-              height: `${h}%`,
-              background: `${color}55`,
-              border: `1px solid ${color}`,
-              borderRadius: 2,
-            }}
-          />
-        );
-      })}
-    </div>
-  );
-}
-
 function EventsTable({ events }: { events: FilterEvent[] }) {
   if (events.length === 0) {
     return (
@@ -313,10 +257,6 @@ function EventsTable({ events }: { events: FilterEvent[] }) {
             <Th>Original</Th>
             <Th>Filtrado</Th>
             <Th>Categorías</Th>
-            <Th>x</Th>
-            <Th>y</Th>
-            <Th>w</Th>
-            <Th>h</Th>
             <Th>URL</Th>
             <Th>Hora</Th>
           </tr>
@@ -345,10 +285,6 @@ function EventsTable({ events }: { events: FilterEvent[] }) {
                 {truncate(e.filtered, 60)}
               </Td>
               <Td>{e.categories.join(", ") || "—"}</Td>
-              <Td>{e.coords.x}</Td>
-              <Td>{e.coords.y}</Td>
-              <Td>{e.coords.width}</Td>
-              <Td>{e.coords.height}</Td>
               <Td style={{ maxWidth: 200 }}>{truncate(e.url, 50)}</Td>
               <Td>{new Date(e.timestamp_ms).toLocaleTimeString("es-MX")}</Td>
             </tr>
