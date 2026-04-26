@@ -44,7 +44,7 @@
 
 La diferencia frente a controles parentales o filtros a nivel de red no está en el catálogo de apps, sino en lo que ocurre debajo: cada vez que el menor consume contenido, **tres capas independientes de filtrado** —URL, texto del DOM e imágenes— inspeccionan ese contenido **directamente en el dispositivo** usando ONNX Runtime nativo. Sin nube, sin latencia de red en la ruta crítica, sin que ningún texto o imagen del menor abandone el equipo.
 
-En paralelo, Shield expone un **dashboard administrativo** independiente (también construido con Tauri + React) pensado para el equipo supervisor —no para el padre individual—. Recibe únicamente eventos anónimos de telemetría (tipo de filtrado, acción tomada, coordenadas en pantalla, categoría detectada, URL) vía un servidor Actix-web, y los presenta como tabla ordenable y *heatmap espacial* en tiempo real, sin almacenar el contenido original.
+En paralelo, Shield expone un **dashboard administrativo** independiente (también construido con Tauri + React) pensado para el equipo supervisor —no para el padre individual—. Recibe únicamente eventos anónimos de telemetría (tipo de filtrado, acción tomada, categoría detectada, URL) vía un servidor Actix-web, y los presenta como tabla ordenable y *heatmap espacial* en tiempo real, sin almacenar el contenido original.
 
 La arquitectura prioriza tres principios: **privacidad por diseño** (cómputo local), **defensa en profundidad** (cada capa cubre los huecos de las otras) y **portabilidad real** (un único workspace de Cargo + Tauri compila para los cinco sistemas operativos objetivo).
 
@@ -79,7 +79,7 @@ Los menores que acceden a internet sin supervisión quedan expuestos a contenido
 2. **Requieren configuración técnica avanzada** del adulto a cargo, lo que crea una brecha real entre quien necesita la herramienta y quien sabe instalarla.
 3. **No ofrecen visibilidad en tiempo real** del contenido que el menor está consultando, ni mucho menos correlación espacial con la página visitada.
 
-Shield aborda los tres frentes: el menor opera dentro de un entorno acotado donde cada interacción —navegación, búsquedas, redes sociales, lectura de texto, visualización de imágenes— atraviesa los filtros antes de renderizarse; el equipo supervisor accede a un dashboard listo para usar sin tocar configuración del sistema; y cada decisión de filtrado se reporta como un evento anónimo con coordenadas, URL y categoría detectada.
+Shield aborda los tres frentes: el menor opera dentro de un entorno acotado donde cada interacción —navegación, búsquedas, redes sociales, lectura de texto, visualización de imágenes— atraviesa los filtros antes de renderizarse; el equipo supervisor accede a un dashboard listo para usar sin tocar configuración del sistema; y cada decisión de filtrado se reporta como un evento anónimo, URL y categoría detectada.
 
 ---
 
@@ -241,7 +241,7 @@ hackathon404/
 
 ---
 
-## Inteligencia Artificial — documentación explícita
+## Inteligencia Artificial
 
 Esta sección documenta cada herramienta de IA utilizada con el formato pedido por la convocatoria: **cuál**, **para qué** y **en qué medida**.
 
@@ -294,7 +294,7 @@ Si la decisión es `Allow`, los bytes originales pasan tal cual sin re-encode. S
 
 ---
 
-### 3 · Filtrado de texto en DOM (IA aplicada al runtime del navegador)
+### 3 · Filtrado de texto en DOM
 
 **Cuál.** El script `app/src-tauri/src/filter.js` (765 líneas) inyectado por Tauri vía `initialization_script` a **`document-start`** en cada WebView, combinado con el comando IPC `filter_texts` que enruta al pipeline NLI descrito en §1.
 
@@ -310,7 +310,7 @@ Si la decisión es `Allow`, los bytes originales pasan tal cual sin re-encode. S
 
 ---
 
-> **Nota sobre privacidad.** Los tres clasificadores corren **en el dispositivo del menor** vía ONNX Runtime con execution providers nativos (CoreML en iOS, CPU/GPU en desktop). Ningún texto ni imagen del menor sale del equipo. Lo único que viaja al servidor administrativo es el `FilterEvent`: tipo (`text`/`image`), acción (`block`/`warn`), categorías detectadas, coordenadas en pantalla, URL y timestamp. Esto es verificable inspeccionando `common/src/lib.rs` y `app/src-tauri/src/lib.rs` (`EventEmitter`, líneas 31–59).
+> **Nota sobre privacidad.** Los tres clasificadores corren **en el dispositivo del menor** vía ONNX Runtime con execution providers nativos (CoreML en iOS, CPU/GPU en desktop). Ningún texto ni imagen del menor sale del equipo. Lo único que viaja al servidor administrativo es el `FilterEvent`: tipo (`text`/`image`), acción (`block`/`warn`), categorías detectadas, URL y timestamp. Esto es verificable inspeccionando `common/src/lib.rs` y `app/src-tauri/src/lib.rs` (`EventEmitter`, líneas 31–59).
 
 ---
 
