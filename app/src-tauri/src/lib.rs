@@ -87,16 +87,27 @@ fn obscure_for(action: Action, text: &str) -> String {
     }
 }
 
-/// Locates the ONNX model + runtime config. Tries the bundled resource dir
-/// first (production builds), then falls back to the dev path under
+/// Locates the ONNX model + runtime config. En iOS `resource_dir()` devuelve
+/// `Shield.app/assets/` (Tauri 2.x lo hardcodea en `tauri-utils::platform`),
+/// y los archivos viven en `Shield.app/assets/resources/...` porque el
+/// folder reference de `project.yml` preserva el segmento `resources/`.
+/// Por eso probamos primero el subpath con prefijo `resources/` y caemos al
+/// sin-prefijo para desktop bundles. Último fallback: dev path bajo
 /// `classifier-py/onnx_model/`.
 fn try_load_classifier(app: &tauri::App) -> anyhow::Result<Classifier> {
     let resource_dir = app.path().resource_dir().ok();
 
     let runtime_path = resource_dir
         .as_ref()
-        .map(|r| r.join("runtime.json"))
-        .filter(|p| p.exists())
+        .and_then(|r| {
+            for sub in ["resources/runtime.json", "runtime.json"] {
+                let p = r.join(sub);
+                if p.exists() {
+                    return Some(p);
+                }
+            }
+            None
+        })
         .or_else(|| {
             let p = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("resources/runtime.json");
             p.exists().then_some(p)
@@ -105,8 +116,15 @@ fn try_load_classifier(app: &tauri::App) -> anyhow::Result<Classifier> {
 
     let onnx_dir = resource_dir
         .as_ref()
-        .map(|r| r.join("onnx_model"))
-        .filter(|p| p.exists())
+        .and_then(|r| {
+            for sub in ["resources/onnx_model", "onnx_model"] {
+                let p = r.join(sub);
+                if p.exists() {
+                    return Some(p);
+                }
+            }
+            None
+        })
         .or_else(|| {
             let p = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
                 .parent()?
@@ -128,14 +146,24 @@ fn try_load_classifier(app: &tauri::App) -> anyhow::Result<Classifier> {
 }
 
 /// Localiza los archivos del clasificador de imágenes MobileCLIP. Igual que
-/// `try_load_classifier`: bundled resource dir primero, dev path como fallback.
+/// `try_load_classifier`: prueba primero el subpath con prefijo `resources/`
+/// (layout iOS, donde `resource_dir()` = `Shield.app/assets/` y los archivos
+/// están en `assets/resources/mobileclip/`), después sin prefijo (desktop),
+/// y al final el dev path.
 fn try_load_image_classifier(app: &tauri::App) -> anyhow::Result<ImageClassifier> {
     let resource_dir = app.path().resource_dir().ok();
 
     let dir = resource_dir
         .as_ref()
-        .map(|r| r.join("mobileclip"))
-        .filter(|p| p.exists())
+        .and_then(|r| {
+            for sub in ["resources/mobileclip", "mobileclip"] {
+                let p = r.join(sub);
+                if p.exists() {
+                    return Some(p);
+                }
+            }
+            None
+        })
         .or_else(|| {
             let p = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("resources/mobileclip");
             p.exists().then_some(p)
