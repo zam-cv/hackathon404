@@ -40,7 +40,11 @@ pub fn decidir(
 
     for (cat, score) in scores {
         let th = *thresholds.get(cat).unwrap_or(&0.70);
-        if *score >= th + 0.15 {
+        // +0.10 alinea con la versión Python (`classifier-py/src/main.py:129`)
+        // y con el README. Antes era +0.15 → Rust era 5pp más permisivo y
+        // contenido con score 0.80–0.84 se quedaba en AVISAR (cuyo `obscure_dashes`
+        // es visualmente idéntico al skeleton del filter.js → parecía no filtrar).
+        if *score >= th + 0.10 {
             bloqueadas.push(cat.clone());
         } else if *score >= th {
             avisadas.push(cat.clone());

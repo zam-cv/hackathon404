@@ -63,7 +63,7 @@ pub fn run() {
             // flotan sobre el header.
             let mut builder =
                 WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()))
-                    .title("Sentinel")
+                    .title("ShieldDash")
                     .inner_size(1200.0, 800.0)
                     .min_inner_size(900.0, 600.0);
 

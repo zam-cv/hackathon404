@@ -35,15 +35,41 @@
       "p.__sb_skel,h1.__sb_skel,h2.__sb_skel,h3.__sb_skel,h4.__sb_skel," +
       "h5.__sb_skel,h6.__sb_skel{color:rgba(120,120,120,0.55) !important;text-shadow:none !important;}" +
       "img:not(.__sb_done){filter:blur(24px) !important;}" +
-      "#__sb_loader{position:fixed;inset:0;background:rgba(15,15,25,0.92);" +
-      "display:flex;align-items:center;justify-content:center;flex-direction:column;" +
-      "gap:14px;z-index:2147483646;color:#fff;font:500 15px -apple-system,system-ui,sans-serif;" +
-      "transition:opacity 250ms ease;}" +
-      "#__sb_loader.__hide{opacity:0;pointer-events:none;}" +
-      "#__sb_spin{width:42px;height:42px;border:4px solid rgba(255,255,255,0.2);" +
-      "border-top-color:#fff;border-radius:50%;animation:__sb_spin 0.8s linear infinite;}" +
+      // Loader minimalista: un <div> sin background ni borde, posicionado
+      // fixed en el centro del viewport. Sólo contiene el spinner. La
+      // protección del contenido viene del skeleton text (`-`) en los
+      // párrafos y del pre-hide blur en imágenes, no de un overlay opaco.
+      // !important neutraliza CSS heredado del sitio (display, position,
+      // z-index, etc.). pointer-events:none deja pasar clicks y scroll.
+      "#__sb_loader{position:fixed !important;top:50% !important;left:50% !important;" +
+      "transform:translate(-50%,-50%) !important;width:32px !important;height:32px !important;" +
+      "margin:0 !important;padding:0 !important;border:0 !important;" +
+      "background:transparent !important;z-index:2147483647 !important;" +
+      "pointer-events:none !important;transition:opacity 250ms ease !important;}" +
+      "#__sb_loader.__hide{opacity:0 !important;}" +
+      // Ring fino: borde oscuro tenue + arc superior blanco + drop-shadow
+      // para que sea legible sobre fondos claros (drop-shadow oscuro hace
+      // silueta) y oscuros (el blanco contrasta solo).
+      "#__sb_spin{width:32px;height:32px;border:3px solid rgba(0,0,0,0.18);" +
+      "border-top-color:#fff;border-radius:50%;animation:__sb_spin 0.9s linear infinite;" +
+      "box-sizing:border-box;filter:drop-shadow(0 0 6px rgba(0,0,0,0.55));}" +
       "@keyframes __sb_spin{to{transform:rotate(360deg)}}";
     (document.head || document.documentElement).appendChild(pre);
+  } catch (_) {}
+
+  // ---------- 1.5. Loader overlay (visible desde el primer paint) ----------
+  // El initialization_script corre antes de que exista <body>, pero
+  // <html> (documentElement) ya está. position:fixed con z-index máximo
+  // garantiza que el spinner cubra el viewport en cualquier sitio. Si el
+  // sitio destruye el elemento via document.write, ensureLoader() lo
+  // recrea en runScan(). Antes usamos <dialog>+showModal para top-layer,
+  // pero el UA stylesheet del dialog deja artefactos visuales (border
+  // groove, outline focus) que rompían el look minimalista.
+  try {
+    var __sbLoaderInit = document.createElement("div");
+    __sbLoaderInit.id = "__sb_loader";
+    __sbLoaderInit.innerHTML = '<div id="__sb_spin" aria-hidden="true"></div>';
+    document.documentElement.appendChild(__sbLoaderInit);
   } catch (_) {}
 
   // ---------- 2. URL/keyword block existente ----------
@@ -116,9 +142,7 @@
     try {
       var el = document.createElement("div");
       el.id = "__sb_loader";
-      el.innerHTML =
-        '<div id="__sb_spin" aria-hidden="true"></div>' +
-        '<div>Filtrando contenido…</div>';
+      el.innerHTML = '<div id="__sb_spin" aria-hidden="true"></div>';
       b.appendChild(el);
     } catch (_) {}
   }
@@ -129,8 +153,6 @@
     var el = document.getElementById("__sb_loader");
     if (!el) return;
     try { el.classList.add("__hide"); } catch (_) {}
-    // Remover del DOM tras la transición — un MutationObserver del sitio
-    // podría reaccionar al nodo huérfano y queremos cerrar el loop.
     setTimeout(function () {
       try { el.parentNode && el.parentNode.removeChild(el); } catch (_) {}
     }, 300);
@@ -593,8 +615,10 @@
 
       try {
         var out = await callFilterTexts(sliceItems, location.href || "");
+        var changed = 0;
         for (var k = 0; k < slice.length; k++) {
           var v = (out && out[k] != null) ? out[k] : sliceTexts[k];
+          if (v !== sliceTexts[k]) changed++;
           try { slice[k].nodeValue = v; } catch (_) {}
           processedTextNodes.add(slice[k]);
           // Revelar el bloque padre apenas tenemos su texto filtrado, en vez
@@ -602,6 +626,16 @@
           // también limpia `__sb_skel`.
           revealAncestorBlock(slice[k]);
         }
+        // Diag: si "0 / N filtered" en cada chunk durante mucho tiempo, lo
+        // más probable es que el clasificador no esté cargado (revisar log
+        // del backend: "[classifier] desactivado: ..."). Si filtra >0, está
+        // funcionando aunque visualmente el resultado de AVISAR (letras→`-`)
+        // se vea idéntico al skeleton.
+        try {
+          console.log("[shield-filter] chunk " +
+            (Math.floor(start / STREAM_CHUNK) + 1) + ": " +
+            changed + " / " + slice.length + " filtered");
+        } catch (_) {}
         if (!firstChunkResolved) {
           firstChunkResolved = true;
           hideLoader();

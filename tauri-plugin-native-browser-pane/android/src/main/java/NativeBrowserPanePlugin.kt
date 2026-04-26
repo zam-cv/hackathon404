@@ -84,15 +84,27 @@ class NativeBrowserPanePlugin(private val activity: Activity) : Plugin(activity)
               "p.__sb_skel,h1.__sb_skel,h2.__sb_skel,h3.__sb_skel,h4.__sb_skel," +
               "h5.__sb_skel,h6.__sb_skel{color:rgba(120,120,120,0.55) !important;text-shadow:none !important;}" +
               "img:not(.__sb_done){filter:blur(24px) !important;}" +
-              "#__sb_loader{position:fixed;inset:0;background:rgba(15,15,25,0.92);" +
-              "display:flex;align-items:center;justify-content:center;flex-direction:column;" +
-              "gap:14px;z-index:2147483646;color:#fff;font:500 15px sans-serif;" +
-              "transition:opacity 250ms ease;}" +
-              "#__sb_loader.__hide{opacity:0;pointer-events:none;}" +
-              "#__sb_spin{width:42px;height:42px;border:4px solid rgba(255,255,255,0.2);" +
-              "border-top-color:#fff;border-radius:50%;animation:__sb_spin 0.8s linear infinite;}" +
+              "#__sb_loader{position:fixed !important;top:50% !important;left:50% !important;" +
+              "transform:translate(-50%,-50%) !important;width:32px !important;height:32px !important;" +
+              "margin:0 !important;padding:0 !important;border:0 !important;" +
+              "background:transparent !important;z-index:2147483647 !important;" +
+              "pointer-events:none !important;transition:opacity 250ms ease !important;}" +
+              "#__sb_loader.__hide{opacity:0 !important;}" +
+              "#__sb_spin{width:32px;height:32px;border:3px solid rgba(0,0,0,0.18);" +
+              "border-top-color:#fff;border-radius:50%;animation:__sb_spin 0.9s linear infinite;" +
+              "box-sizing:border-box;filter:drop-shadow(0 0 6px rgba(0,0,0,0.55));}" +
               "@keyframes __sb_spin{to{transform:rotate(360deg)}}";
             (document.head || document.documentElement).appendChild(pre);
+          } catch (_) {}
+
+          // Loader inmediato: <div> + position:fixed con z-index máximo.
+          // El skeleton text de los párrafos protege el contenido; el
+          // spinner es sólo indicador de carga, no necesita tapar nada.
+          try {
+            var __sbLoaderInit = document.createElement('div');
+            __sbLoaderInit.id = '__sb_loader';
+            __sbLoaderInit.innerHTML = '<div id="__sb_spin" aria-hidden="true"></div>';
+            document.documentElement.appendChild(__sbLoaderInit);
           } catch (_) {}
 
           var BAD_URL_PATTERNS = [/porn/i,/xxx/i,/xvideos/i,/pornhub/i,/redtube/i,/youporn/i,/xnxx/i,/onlyfans/i,/chaturbate/i,/\bnsfw\b/i];
@@ -137,7 +149,7 @@ class NativeBrowserPanePlugin(private val activity: Activity) : Plugin(activity)
             try {
               var el = document.createElement('div');
               el.id = '__sb_loader';
-              el.innerHTML = '<div id="__sb_spin" aria-hidden="true"></div><div>Filtrando contenido…</div>';
+              el.innerHTML = '<div id="__sb_spin" aria-hidden="true"></div>';
               b.appendChild(el);
             } catch (_) {}
           }
