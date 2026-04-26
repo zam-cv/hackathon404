@@ -20,16 +20,13 @@ export interface Incident {
   platform: string;
   type: string;
   risk: Risk;
-  lat: string;
-  lon: string;
+  estado: string;
+  municipio: string;
   time: string;
-  region: string;
 }
 
 export interface StateRow {
   estado: string;
-  altitud: number;
-  lat: string;
   incidentes: number;
   riesgo: Risk;
   ofensa: string;

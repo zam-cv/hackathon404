@@ -35,7 +35,7 @@ export function LiveFeed({ seed }: Props) {
                 {item.type}
               </div>
               <div style={{ fontSize: "10px", color: T.text2, marginTop: "1px" }}>
-                {item.region} · {item.platform}
+                {item.municipio}, {item.estado} · {item.platform}
               </div>
             </div>
             <span
