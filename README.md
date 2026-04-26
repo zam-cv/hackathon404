@@ -250,7 +250,7 @@ hackathon404/
 
 ## Inteligencia Artificial
 
-Esta sección documenta cada herramienta de IA utilizada con el formato pedido por la convocatoria: **cuál**, **para qué** y **en qué medida**.
+Shield integra modelos de IA que corren **en el dispositivo del menor**. A continuación se documenta cada uno con el formato pedido por la convocatoria —**cuál**, **para qué** y **en qué medida**— y al cierre se listan las herramientas de apoyo que se emplearon durante el hackathon.
 
 ### 1 · Clasificador NLI zero-shot multilingüe (texto)
 
@@ -318,6 +318,14 @@ Si la decisión es `Allow`, los bytes originales pasan tal cual sin re-encode. S
 ---
 
 > **Nota sobre privacidad.** Los tres clasificadores corren **en el dispositivo del menor** vía ONNX Runtime con execution providers nativos (CoreML en iOS, CPU/GPU en desktop). Ningún texto ni imagen del menor sale del equipo. Lo único que viaja al servidor administrativo es el `FilterEvent`: tipo (`text`/`image`), acción (`block`/`warn`), categorías detectadas, URL y timestamp. Esto es verificable inspeccionando `common/src/lib.rs` y `app/src-tauri/src/lib.rs` (`EventEmitter`, líneas 31–59).
+
+### Herramientas de apoyo durante el desarrollo
+
+Para acelerar el trabajo durante el hackathon se emplearon, además del flujo habitual del equipo:
+
+- **Perplexity** — búsqueda profunda para validar decisiones técnicas (modelos de visión-lenguaje aptos para móvil, execution providers de ONNX Runtime, opciones de WebView nativo en Tauri 2).
+- **Claude Code** — generación y refactor de código en Rust, TypeScript y Python, con revisión humana en cada cambio.
+- **Gemini** — investigación complementaria y diagnóstico puntual de errores de integración.
 
 ---
 

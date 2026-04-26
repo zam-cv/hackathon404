@@ -1,6 +1,6 @@
 name: app
 options:
-  bundleIdPrefix: com.hackathon404.com
+  bundleIdPrefix: com.czamudio.shield
   deploymentTarget:
     iOS: 14.0
 fileGroups: [../../src]
@@ -10,8 +10,8 @@ configs:
 settingGroups:
   app:
     base:
-      PRODUCT_NAME: app
-      PRODUCT_BUNDLE_IDENTIFIER: com.hackathon404.com
+      PRODUCT_NAME: Shield
+      PRODUCT_BUNDLE_IDENTIFIER: com.czamudio.shield
 targetTemplates:
   app:
     type: application
