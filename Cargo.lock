@@ -782,8 +782,24 @@ dependencies = [
 ]
 
 [[package]]
+<<<<<<< HEAD
 name = "darling_macro"
 version = "0.21.3"
+=======
+name = "dashboard"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-opener",
+]
+
+[[package]]
+name = "deranged"
+version = "0.5.8"
+>>>>>>> 79490c5ef2bf2da9642f4588696b9f7a78e0e82c
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d38308df82d1080de0afee5d069fa14b0326a88c14f15c5ccda35b4a6c414c81"
 dependencies = [
