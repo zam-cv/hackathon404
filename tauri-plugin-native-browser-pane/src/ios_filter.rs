@@ -16,9 +16,13 @@ use swift_rs::SRString;
 
 /// Limite de seguridad: textos individuales más largos se truncan.
 const MAX_TEXT_LEN: usize = 4000;
-/// Limite de seguridad: si llegan más de N textos en un batch, solo procesamos
-/// los primeros N. Evita OOM si el WebView nos manda la página entera.
-const MAX_BATCH_SIZE: usize = 64;
+/// Tamaño de chunk para procesar el batch en porciones. El `Session` de ort
+/// está detrás de un `Mutex` (nli.rs), así que toda inferencia ya está
+/// serializada — chunkear no agrega trabajo, solo divide la cola para acotar
+/// el peor-caso de memoria por iteración (~64 × MAX_TEXT_LEN × 12 hipótesis ×
+/// 256 tokens). Procesa el batch completo en N/CHUNK_SIZE pasadas, sin
+/// descartar inputs.
+const CHUNK_SIZE: usize = 64;
 
 #[no_mangle]
 pub extern "C" fn classifier_filter_texts(
@@ -43,15 +47,6 @@ pub extern "C" fn classifier_filter_texts(
             }
         };
 
-        let original_count = inputs.len();
-        if inputs.len() > MAX_BATCH_SIZE {
-            eprintln!(
-                "[plugin classifier] batch {} > {} — truncando",
-                inputs.len(),
-                MAX_BATCH_SIZE
-            );
-            inputs.truncate(MAX_BATCH_SIZE);
-        }
         for t in &mut inputs {
             if t.len() > MAX_TEXT_LEN {
                 t.truncate(MAX_TEXT_LEN);
@@ -59,16 +54,25 @@ pub extern "C" fn classifier_filter_texts(
         }
 
         eprintln!(
-            "[plugin classifier] processing {} (of {}) texts",
+            "[plugin classifier] processing {} texts in chunks of {}",
             inputs.len(),
-            original_count
+            CHUNK_SIZE
         );
 
         let outputs = match SHARED_CLASSIFIER.get() {
             Some(classifier) => {
-                let out = apply_filter_batch(classifier, &inputs);
-                eprintln!("[plugin classifier] done: {} outputs", out.len());
-                out
+                let mut all_out = Vec::with_capacity(inputs.len());
+                for (i, chunk) in inputs.chunks(CHUNK_SIZE).enumerate() {
+                    eprintln!("[plugin classifier] chunk {} ({} texts)", i, chunk.len());
+                    let out = apply_filter_batch(classifier, chunk);
+                    all_out.extend(out);
+                }
+                eprintln!(
+                    "[plugin classifier] done: {}/{} outputs",
+                    all_out.len(),
+                    inputs.len()
+                );
+                all_out
             }
             None => {
                 eprintln!("[plugin classifier] SHARED no inicializado, passthrough");

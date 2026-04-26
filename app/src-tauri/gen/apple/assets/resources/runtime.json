@@ -138,7 +138,7 @@
   "lexical_boost_floor": 0.7,
   "lexical_shortcut_score": 0.95,
   "max_context": 4,
-  "model_id": "MoritzLaurer/multilingual-MiniLMv2-L6-mnli-xnli",
+  "model_id": "MoritzLaurer/mDeBERTa-v3-base-mnli-xnli",
   "neutral_hypothesis": "Este mensaje es una conversación cotidiana e inofensiva entre familiares, amigos, compañeros de trabajo, vendedores o desconocidos sobre temas comunes como trabajo legítimo, dinero entre conocidos, salud, comida, planes, estudios o consejos.",
   "test_cases": [
     {

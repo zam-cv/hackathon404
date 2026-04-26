@@ -29,6 +29,22 @@ pub use filter::{
 };
 pub use pipeline::Pipeline;
 
+/// Inicializa la `OrtApi` global vía `OrtGetApiBase` cuando se enlaza
+/// estáticamente contra libonnxruntime.a (feature `alternative-backend`).
+/// Debe llamarse antes de cualquier uso de `ort` (incluyendo `Classifier::new`).
+/// Idempotente — `ort::set_api` no sobreescribe si ya hay una instancia.
+#[cfg(target_os = "ios")]
+pub fn init_ort_api() {
+    use ort::sys;
+    unsafe {
+        let base = sys::OrtGetApiBase();
+        assert!(!base.is_null(), "OrtGetApiBase devolvió null");
+        let api_ptr = ((*base).GetApi)(sys::ORT_API_VERSION);
+        assert!(!api_ptr.is_null(), "GetApi devolvió null");
+        ort::set_api(*api_ptr);
+    }
+}
+
 /// Public façade: load once at app startup, call `classify` per text.
 pub struct Classifier {
     pipeline: Pipeline,

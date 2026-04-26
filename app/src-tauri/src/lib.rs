@@ -290,6 +290,12 @@ pub fn run() {
 
     builder
         .setup(|app| {
+            // En iOS enlazamos ort estáticamente con la feature
+            // `alternative-backend`, que requiere inicializar la `OrtApi` global
+            // explícitamente antes de cualquier uso de `ort`.
+            #[cfg(target_os = "ios")]
+            classifier_core::init_ort_api();
+
             let holder = match try_load_classifier(app) {
                 Ok(c) => {
                     eprintln!("[classifier] cargado");

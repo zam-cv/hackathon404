@@ -99,13 +99,16 @@ impl Pipeline {
             });
         }
 
-        // Capa 2: NLI batched (todas las hipótesis + neutral).
+        // Capa 2: NLI batched (zero-shot multi_label estilo HF).
+        // La hipótesis neutral se sigue inyectando para mantener simetría con
+        // build()/idx_to_cat, pero su score se ignora deliberadamente — antes
+        // se sustraía como baseline pero absorbía demasiada señal real (ver
+        // experimento sobre cartel-news en DDG, abril 2026).
         let entail = self
             .nli
             .entailment_scores(&texto_eval, &self.all_hypotheses)?;
-        let neutral_score = *entail.last().unwrap_or(&0.0);
 
-        // Agregar por categoría: max - neutral, clamp a [0, ∞), boost si 1 patrón léxico.
+        // Agregar por categoría: max entail, boost si 1 patrón léxico.
         let mut scores: BTreeMap<String, f32> = BTreeMap::new();
         for cat in &self.cfg.category_keys {
             let mut max_score: f32 = 0.0;
@@ -114,7 +117,7 @@ impl Pipeline {
                     max_score = entail[i];
                 }
             }
-            let mut score = (max_score - neutral_score).max(0.0);
+            let mut score = max_score;
             if matches[cat] == 1 {
                 score = score.max(self.cfg.lexical_boost_floor);
             }

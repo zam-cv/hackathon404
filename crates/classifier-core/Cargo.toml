@@ -18,8 +18,13 @@ anyhow = "1.0"
 [target.'cfg(not(any(target_os = "ios", target_os = "android")))'.dependencies]
 ort = { version = "=2.0.0-rc.10", default-features = false, features = ["std", "ndarray", "download-binaries"] }
 
-# Mobile: ort static-links contra libonnxruntime.a. ORT_LIB_LOCATION debe estar
-# seteado al invocar cargo (lo hace el shellScript del pbxproj de iOS, ver
-# scripts/patch-pbxproj.py + scripts/setup-ort-ios.sh).
-[target.'cfg(any(target_os = "ios", target_os = "android"))'.dependencies]
+# iOS: ort-sys's own linking is disabled (alternative-backend feature).
+# app/src-tauri/build.rs descarga el xcframework, hace lipo -thin, y emite los
+# rustc-link-* directamente. La inicialización del runtime se hace en
+# app/src-tauri/src/lib.rs llamando a ort::set_api() antes de cargar el modelo.
+[target.'cfg(target_os = "ios")'.dependencies]
+ort = { version = "=2.0.0-rc.10", default-features = false, features = ["std", "ndarray", "alternative-backend"] }
+
+# Android: deja que ort-sys haga su propio linking via ORT_LIB_LOCATION env var.
+[target.'cfg(target_os = "android")'.dependencies]
 ort = { version = "=2.0.0-rc.10", default-features = false, features = ["std", "ndarray"] }

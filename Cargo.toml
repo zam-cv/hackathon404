@@ -1,11 +1,8 @@
 [workspace]
 resolver = "2"
-<<<<<<< HEAD
 members = [
     "app/src-tauri",
+    "dashboard/src-tauri",
     "tauri-plugin-native-browser-pane",
     "crates/classifier-core",
 ]
-=======
-members = ["app/src-tauri", "dashboard/src-tauri", "tauri-plugin-native-browser-pane"]
->>>>>>> 79490c5ef2bf2da9642f4588696b9f7a78e0e82c

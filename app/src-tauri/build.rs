@@ -3,13 +3,17 @@
 //! 1. **runtime.json**: regenera desde `classifier/.env`.
 //! 2. **Modelo**: hardlink-ea cada archivo de `classifier/onnx_model/` →
 //!    `app/src-tauri/resources/onnx_model/*`.
-//!
-//! Para iOS, scripts/setup.sh prepara libonnxruntime.a en .ort_link/<target>/
-//! antes de cargo build (build script override en .cargo/config.toml hace que
-//! ort-sys lo encuentre estáticamente). Si no se corrió setup.sh, el build de
-//! iOS falla con un mensaje claro.
+//! 3. **iOS link**: descarga onnxruntime.xcframework (~30 MB) si falta,
+//!    extrae el slice del target con `lipo -thin`, y emite los
+//!    `cargo:rustc-link-*` para enlazar libonnxruntime.a estáticamente.
+//!    Reemplaza al antiguo `scripts/setup.sh` + override en
+//!    `.cargo/config.toml`. Funciona porque `classifier-core` activa la
+//!    feature `alternative-backend` de `ort` en iOS (deshabilita el linking
+//!    automático de `ort-sys`), y `lib.rs` llama a `init_ort_api()` al startup.
 
 use std::path::{Path, PathBuf};
+
+const ORT_VERSION: &str = "1.22.0";
 
 fn main() {
     let manifest = PathBuf::from(std::env::var("CARGO_MANIFEST_DIR").unwrap());
@@ -22,20 +26,138 @@ fn main() {
 
     let target_os = std::env::var("CARGO_CFG_TARGET_OS").unwrap_or_default();
     if target_os == "ios" {
-        warn_if_setup_missing(&manifest);
+        if let Err(e) = setup_ort_ios(&manifest) {
+            panic!("setup ort iOS falló: {e}");
+        }
     }
 
     tauri_build::build();
 }
 
-fn warn_if_setup_missing(manifest: &Path) {
-    let target = std::env::var("TARGET").unwrap_or_default();
-    let lib = manifest.join(format!(".ort_link/{target}/libonnxruntime.a"));
-    if !lib.exists() {
-        println!(
-            "cargo:warning=falta {}. Corre `bash scripts/setup.sh` desde la raíz del repo.",
-            lib.display()
-        );
+// ----------------------------------------------------------------------------
+// 3. iOS: ort static linking (ex-scripts/setup.sh)
+// ----------------------------------------------------------------------------
+
+fn setup_ort_ios(manifest: &Path) -> Result<(), String> {
+    let target = std::env::var("TARGET").map_err(|e| e.to_string())?;
+
+    // Mapping target → (xcframework slice, lipo arch name). El xcframework de
+    // Microsoft trae device (ios-arm64) y simulator (ios-arm64_x86_64-simulator).
+    // Sólo soportamos arm64 — x86_64 simulator quedó deprecado. Notar que
+    // `lipo` espera "arm64", no "aarch64" (el nombre rust de la arquitectura).
+    let (slice, arch) = match target.as_str() {
+        "aarch64-apple-ios" => ("ios-arm64", "arm64"),
+        "aarch64-apple-ios-sim" => ("ios-arm64_x86_64-simulator", "arm64"),
+        other => return Err(format!("target iOS no soportado: {other}")),
+    };
+
+    // Vendor location compartida con el Swift package del plugin nativo.
+    let xcfw_root = manifest
+        .join("../../tauri-plugin-native-browser-pane/ios/vendor/onnxruntime.xcframework");
+
+    if !xcfw_root.exists() {
+        download_xcframework(&xcfw_root)?;
+    }
+
+    let src = xcfw_root
+        .join(slice)
+        .join("onnxruntime.framework/onnxruntime");
+    if !src.exists() {
+        return Err(format!("slice no encontrado en xcframework: {}", src.display()));
+    }
+
+    let dst_dir = manifest.join(format!(".ort_link/{target}"));
+    std::fs::create_dir_all(&dst_dir).map_err(|e| format!("mkdir {}: {e}", dst_dir.display()))?;
+    let dst = dst_dir.join("libonnxruntime.a");
+
+    if needs_relipo(&src, &dst) {
+        let _ = std::fs::remove_file(&dst);
+        let status = std::process::Command::new("lipo")
+            .args(["-thin", arch, "-output"])
+            .arg(&dst)
+            .arg(&src)
+            .status()
+            .map_err(|e| format!("ejecutar lipo: {e}"))?;
+        if !status.success() {
+            return Err(format!("lipo falló para {target} ({arch})"));
+        }
+    }
+
+    println!("cargo:rerun-if-changed={}", src.display());
+    println!("cargo:rerun-if-changed={}", dst.display());
+
+    // CARGO_MANIFEST_DIR es absoluto, así que dst_dir también — esquivamos
+    // la limitación de `.cargo/config.toml` que no expande relativos a
+    // través de build script overrides.
+    println!("cargo:rustc-link-search=native={}", dst_dir.display());
+    println!("cargo:rustc-link-lib=static=onnxruntime");
+    println!("cargo:rustc-link-lib=framework=Foundation");
+    println!("cargo:rustc-link-lib=framework=CoreFoundation");
+    println!("cargo:rustc-link-lib=framework=CoreML");
+
+    Ok(())
+}
+
+fn download_xcframework(dst: &Path) -> Result<(), String> {
+    let url = format!(
+        "https://download.onnxruntime.ai/pod-archive-onnxruntime-c-{ORT_VERSION}.zip"
+    );
+    println!("cargo:warning=descargando onnxruntime {ORT_VERSION} (~30 MB)...");
+
+    let parent = dst
+        .parent()
+        .ok_or_else(|| format!("xcfw destino sin parent: {}", dst.display()))?;
+    std::fs::create_dir_all(parent).map_err(|e| format!("mkdir {}: {e}", parent.display()))?;
+
+    let tmp_dir = parent.join(".onnxruntime-download.tmp");
+    let _ = std::fs::remove_dir_all(&tmp_dir);
+    std::fs::create_dir_all(&tmp_dir).map_err(|e| format!("mkdir tmp: {e}"))?;
+    let zip_path = tmp_dir.join("ort.zip");
+
+    let curl = std::process::Command::new("curl")
+        .arg("-fsSLo")
+        .arg(&zip_path)
+        .arg(&url)
+        .status()
+        .map_err(|e| format!("ejecutar curl: {e}"))?;
+    if !curl.success() {
+        return Err(format!("curl falló descargando {url}"));
+    }
+
+    let unzip = std::process::Command::new("unzip")
+        .arg("-q")
+        .arg(&zip_path)
+        .arg("-d")
+        .arg(&tmp_dir)
+        .status()
+        .map_err(|e| format!("ejecutar unzip: {e}"))?;
+    if !unzip.success() {
+        return Err("unzip falló".into());
+    }
+
+    let extracted = tmp_dir.join("onnxruntime.xcframework");
+    if !extracted.exists() {
+        return Err(format!(
+            "xcframework no encontrado tras unzip en {}",
+            extracted.display()
+        ));
+    }
+    std::fs::rename(&extracted, dst)
+        .map_err(|e| format!("rename {} → {}: {e}", extracted.display(), dst.display()))?;
+    let _ = std::fs::remove_dir_all(&tmp_dir);
+    Ok(())
+}
+
+fn needs_relipo(src: &Path, dst: &Path) -> bool {
+    if !dst.exists() {
+        return true;
+    }
+    let (Ok(s), Ok(d)) = (std::fs::metadata(src), std::fs::metadata(dst)) else {
+        return true;
+    };
+    match (s.modified(), d.modified()) {
+        (Ok(sm), Ok(dm)) => sm > dm,
+        _ => true,
     }
 }
 
@@ -94,8 +216,18 @@ fn generate_runtime_json(manifest: &Path) -> Result<(), String> {
 
     let out_path = manifest.join("resources/runtime.json");
     let _ = std::fs::create_dir_all(out_path.parent().unwrap());
-    std::fs::write(&out_path, serde_json::to_string_pretty(&runtime).unwrap())
-        .map_err(|e| format!("write {}: {e}", out_path.display()))?;
+    let new_contents = serde_json::to_string_pretty(&runtime).unwrap();
+    // Sólo escribir si cambió — si tocamos mtime sin necesidad, el watcher
+    // de Tauri dev detecta el cambio en resources/runtime.json y vuelve a
+    // disparar la build, creando un loop infinito.
+    let needs_write = match std::fs::read_to_string(&out_path) {
+        Ok(existing) => existing != new_contents,
+        Err(_) => true,
+    };
+    if needs_write {
+        std::fs::write(&out_path, new_contents)
+            .map_err(|e| format!("write {}: {e}", out_path.display()))?;
+    }
 
     Ok(())
 }
