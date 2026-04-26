@@ -1,3 +1,12 @@
+// OverviewPage — vista principal del prototipo.
+//
+// Estrategia: el mock data sigue alimentando la vista (para que el prototipo
+// SIEMPRE se vea poblado, aunque no haya eventos reales). Encima de eso, los
+// eventos reales que llegan del servidor se SUMAN a los buckets, se prependen
+// al feed, a la tabla de incidentes recientes y a los KPIs. Si hay 0 eventos
+// reales, la vista se ve idéntica al mock.
+
+import { useMemo } from "react";
 import { T } from "../theme";
 import { weekDays } from "../data/mock";
 import {
@@ -7,6 +16,14 @@ import {
   useStates,
   useWeeklyTrend,
 } from "../data/hooks";
+import {
+  addArrays,
+  bucketDaily,
+  bucketHourly,
+  countByAction,
+  eventsToIncidents,
+} from "../data/realtime";
+import type { FilterEvent } from "../events";
 import { BarChart24h } from "../components/BarChart24h";
 import { DonutChart } from "../components/DonutChart";
 import { IncidentsTable } from "../components/IncidentsTable";
@@ -16,30 +33,61 @@ import { StatesRawTable } from "../components/StatesRawTable";
 import { StatesTable } from "../components/StatesTable";
 import { WeekChart } from "../components/WeekChart";
 
-export function OverviewPage() {
+interface Props {
+  /** Eventos reales del servidor (vía useFilterEvents en App). */
+  events?: FilterEvent[];
+}
+
+export function OverviewPage({ events = [] }: Props) {
   const incidents = useIncidents();
   const states = useStates();
   const platforms = usePlatforms();
   const hourly = useHourly();
   const weekly = useWeeklyTrend();
 
+  // Derivados de los eventos reales (recalcular cuando llega un evento nuevo).
+  const real = useMemo(() => {
+    const counts = countByAction(events);
+    const realHourly = bucketHourly(events);
+    const realWeekly = bucketDaily(events);
+    // Más nuevos primero (events del hook viene en orden ascendente).
+    const realIncidents = eventsToIncidents([...events].reverse());
+    return { counts, realHourly, realWeekly, realIncidents };
+  }, [events]);
+
+  const hasReal = events.length > 0;
+
+  // Merge mock + real para los gráficos numéricos.
+  const mergedHourly = hourly.data ? addArrays(hourly.data, real.realHourly) : real.realHourly;
+  const mergedWeekly = weekly.data ? addArrays(weekly.data, real.realWeekly) : real.realWeekly;
+
+  // Para tablas e feed: real-converted-to-Incident primero, mock después.
+  // El usuario percibe los reales en la cima, los mock como contexto.
+  const mergedIncidents = [
+    ...real.realIncidents,
+    ...(incidents.data ?? []),
+  ];
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-      {/* KPI Row — values are still hard-coded; wire to real metrics later. */}
+      {/* KPI Row — el valor grande sigue siendo mock; la línea inferior
+          refleja los eventos reales del servidor cuando los hay. */}
       <div style={{ display: "flex", gap: "12px", flexShrink: 0 }}>
         <KpiCard
           label="Endpoints Activos"
           value="1,248,302"
-          sub="↑ +4.2% este mes"
+          sub={hasReal ? `↑ ${real.counts.total} eventos en vivo` : "↑ +4.2% este mes"}
           subColor={T.green}
           icon="users"
           accent={T.primary}
-          spark={weekly.data ?? []}
+          spark={mergedWeekly.length > 0 ? mergedWeekly : (weekly.data ?? [])}
         />
         <KpiCard
           label="Requests Bloqueadas"
-          value="42,912"
-          sub="⚠ Spike en api-gateway"
+          value={hasReal
+            ? (42_912 + real.counts.block).toLocaleString("es-MX")
+            : "42,912"}
+          sub={hasReal ? `+${real.counts.block} bloqueos en vivo` : "⚠ Spike en api-gateway"}
           subColor={T.secondary}
           icon="block"
           accent={T.secondary}
@@ -47,8 +95,12 @@ export function OverviewPage() {
         />
         <KpiCard
           label="Alertas Activas"
-          value="284"
-          sub="↑ 18 en la última hora"
+          value={hasReal
+            ? (284 + real.counts.warn + real.counts.block).toLocaleString("es-MX")
+            : "284"}
+          sub={hasReal
+            ? `+${real.counts.warn + real.counts.block} alertas en vivo`
+            : "↑ 18 en la última hora"}
           subColor={T.amber}
           icon="alert"
           accent={T.amber}
@@ -57,8 +109,15 @@ export function OverviewPage() {
       </div>
 
       <div style={{ display: "flex", gap: "12px", flexShrink: 0 }}>
-        <Card flex={2} title="Picos de Latencia" sub="Últimas 24 horas · hora local UTC" rightAccent="TENDENCIA">
-          {hourly.data && <BarChart24h data={hourly.data} />}
+        <Card
+          flex={2}
+          title="Picos de Latencia"
+          sub={hasReal
+            ? `Últimas 24h · mock + ${real.counts.total} eventos en vivo`
+            : "Últimas 24 horas · hora local UTC"}
+          rightAccent="TENDENCIA"
+        >
+          <BarChart24h data={mergedHourly} />
         </Card>
 
         <Card flex={1} title="Servicios" sub="Distribución por servicio">
@@ -68,18 +127,38 @@ export function OverviewPage() {
 
       <div style={{ display: "flex", gap: "12px", flexShrink: 0 }}>
         <Card flex={1} title="Tendencia Semanal" sub="Alertas últimos 7 días">
-          {weekly.data && <WeekChart data={weekly.data} labels={weekDays} />}
-          <WeeklyStats data={weekly.data ?? []} />
+          <WeekChart data={mergedWeekly} labels={weekDays} />
+          <WeeklyStats data={mergedWeekly} />
         </Card>
 
-        <Card flex={1} title="Feed en Vivo" sub="Eventos entrantes en tiempo real" rightAccent="LIVE">
-          {incidents.data && <LiveFeed seed={incidents.data} />}
+        <Card
+          flex={1}
+          title="Feed en Vivo"
+          sub={hasReal
+            ? `${real.counts.total} eventos del servidor + simulación`
+            : "Eventos entrantes (simulados — esperando servidor)"}
+          rightAccent="LIVE"
+        >
+          {/* Pasamos los reales al inicio del seed; LiveFeed los muestra y
+              su streamer interno (subscribeIncidents) sigue añadiendo mock
+              para mantener el prototipo lleno. */}
+          <LiveFeed
+            seed={
+              mergedIncidents.length > 0
+                ? mergedIncidents
+                : (incidents.data ?? [])
+            }
+          />
         </Card>
       </div>
 
+      {/* Las dos tablas geográficas y la tabla raw son del prototipo: viven
+          en mock. No hay equivalente geográfico en FilterEvent. */}
       {states.data && <StatesRawTable rows={states.data} />}
       {states.data && <StatesTable rows={states.data} />}
-      {incidents.data && <IncidentsTable incidents={incidents.data} />}
+
+      {/* Incidentes Recientes: real primero, mock después. */}
+      <IncidentsTable incidents={mergedIncidents} />
     </div>
   );
 }
